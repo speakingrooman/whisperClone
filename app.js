@@ -29,6 +29,8 @@ userSchema.plugin(encrypt,{secret:process.env.SECRET,encryptedFields:["password"
 
 const User=new mongoose.model("User",userSchema);
 
+//take password add key and get a cipher method
+//hashing no longer needs encryption key, turns password into hash
 
 
 
