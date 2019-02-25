@@ -4,11 +4,14 @@ const express=require("express");
 const bodyParser=require("body-parser");
 const ejs=require("ejs");
 const mongoose=require("mongoose");
-const encrypt=require("mongoose-encryption");
+const bcrypt=require("bcrypt");
+const saltRounds=10;  //how many rounds to add salt
+// const md5=require("md5");  md5 hash encrypt
+// const encrypt=require("mongoose-encryption"); mongoose encrypt
 
 const app=express();
 
-console.log(process.env.SECRET);
+// console.log(process.env.SECRET);   prints the secret const in env file
 
 app.use(express.static("public"));    //can access public cssfile/images
 app.set('view engine', 'ejs');   //allows use of ejs files
@@ -21,7 +24,7 @@ const userSchema= new mongoose.Schema({
   password:String
 });
 
-userSchema.plugin(encrypt,{secret:process.env.SECRET,encryptedFields:["password"]});
+// userSchema.plugin(encrypt,{secret:process.env.SECRET,encryptedFields:["password"]});   -->mongoose encrypt
 //process.env.secret to access the files in our.env file
 //use new userschema defined above to encrypt with mongoose plugin
 //only encrypt certain fields, here we use password, if multiple add into password array with , seperating values
@@ -47,25 +50,42 @@ app.get("/register",function(req,res){
 })
 
 app.post("/register",function(req,res){
+  bcrypt.hash(req.body.password,saltRounds,function(err,hash){
+    const newUser=new User({
+      email:req.body.username,
+      password:hash
+    });
+    newUser.save(function(err){
+      if (err) {
+          console.log(err);
+      } else {
+        res.render("secrets");
+      }
+    });
+  })
+})
+
   //use the names from the input types in ejs regsiter file
   //using user schema to build new user
-  const newUser=new User({
-    email:req.body.username,       //username from ejs file
-    password:req.body.password    //also from there
-  });
-  newUser.save(function(err){
-    if (err) {
-        console.log(err);
-    } else {
-      res.render("secrets");
+  //this is allmd5 hashing
+  // const newUser=new User({
+  //   email:req.body.username,       //username from ejs file
+  //   password:md5(req.body.password)    //also from there  this is the md5 hash
+  // });
+  // newUser.save(function(err){
+  //   if (err) {
+  //       console.log(err);
+  //   } else {
+  //     res.render("secrets");
       //save the user and then render the secrets page else log error
       //no app.get for secret route since dont want to render unless registered
-    }
-  });
-});
+//     }
+//   });
+// });
 
 app.post("/login",function(req,res){
   const username=req.body.username;
+  // const password=md5(req.body.password); md5 password
   const password=req.body.password;
   //look for username in database and if user found, check to see if password match
   User.findOne({email:username},function(err,foundUser){
@@ -73,12 +93,16 @@ app.post("/login",function(req,res){
       console.log(err);
     } else {
       if (foundUser) {
-          if (foundUser.password===password) {
+        bcrypt.compare(password,foundUser.password,function(err,result){
+          // if (foundUser.password===password) { for md5 hash
+            if(result===true){
               res.render("secrets");
+            }
               //if user found and password match then render page
-          }
+          })
+        }
       }
-    }
+
   });
 });
 
